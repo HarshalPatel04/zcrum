@@ -14,9 +14,9 @@ export async function createProject(data) {
     throw new Error("No Organization Selected");
   }
 
-  // Check if the user is an admin of the organization
-  const { data: membershipList } =
-    await clerkClient().organizations.getOrganizationMembershipList({
+  // Clerk v4 returns array directly
+  const membershipList =
+    await clerkClient.organizations.getOrganizationMembershipList({
       organizationId: orgId,
     });
 
@@ -51,7 +51,6 @@ export async function getProject(projectId) {
     throw new Error("Unauthorized");
   }
 
-  // Find user to verify existence
   const user = await db.user.findUnique({
     where: { clerkUserId: userId },
   });
@@ -60,7 +59,6 @@ export async function getProject(projectId) {
     throw new Error("User not found");
   }
 
-  // Get project with sprints and organization
   const project = await db.project.findUnique({
     where: { id: projectId },
     include: {
@@ -74,7 +72,6 @@ export async function getProject(projectId) {
     throw new Error("Project not found");
   }
 
-  // Verify project belongs to the organization
   if (project.organizationId !== orgId) {
     return null;
   }

@@ -1,34 +1,38 @@
-import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
+import { authMiddleware, redirectToSignIn } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 
-const isProtectedRoute = createRouteMatcher([
-  "/onboarding(.*)",
-  "/organisation(.*)",
-  "/project(.*)",
-  "/issue(.*)",
-  "/sprint(.*)",
-]);
+export default authMiddleware({
+  publicRoutes: ["/", "/sign-in", "/sign-up"],
 
-export default clerkMiddleware((auth, req) => {
-  if (!auth().userId && isProtectedRoute(req)) {
-    return auth().redirectToSignIn();
-  }
+  afterAuth(auth, req) {
+    if (!auth.userId && !auth.isPublicRoute) {
+      return redirectToSignIn({ returnBackUrl: req.url });
+    }
 
-  if (
-    auth().userId &&
-    !auth().orgId &&
-    req.nextUrl.pathname !== "/onboarding" &&
-    req.nextUrl.pathname !== "/"
-  ) {
-    return NextResponse.redirect(new URL("/onboarding", req.url));
-  }
+    if (
+      auth.userId &&
+      !auth.orgId &&
+      !req.nextUrl.pathname.startsWith("/onboarding") &&
+      req.nextUrl.pathname !== "/"
+    ) {
+      return NextResponse.redirect(new URL("/onboarding", req.url));
+    }
+
+    if (
+      auth.userId &&
+      auth.orgId &&
+      req.nextUrl.pathname.startsWith("/onboarding")
+    ) {
+      return NextResponse.redirect(
+        new URL(`/organization/${auth.orgId}`, req.url)
+      );
+    }
+  },
 });
 
 export const config = {
   matcher: [
-    // Skip Next.js internals and all static files, unless found in search params
     "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
-    // Always run for API routes
     "/(api|trpc)(.*)",
   ],
 };
